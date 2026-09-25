@@ -1,0 +1,13 @@
+[package]
+name = "sched-domain"
+description = "Modelo de dominio del motor de horarios. Sin dependencias externas."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Regla de arquitectura: este crate NO declara dependencias.
+[dependencies]
+
+[lints]
+workspace = true

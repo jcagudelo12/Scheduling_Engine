@@ -36,6 +36,54 @@ La institución empuja toda la información y el motor nunca la consulta
   institución ([ADR 0004](docs/adr/0004-contexto-del-estudiante-en-token-firmado.md),
   pendiente: hoy el endpoint HTTP lo recibe sin firmar).
 
+## Tecnologías
+
+### Lenguaje y herramientas base
+
+| Tecnología | Para qué se usa |
+|---|---|
+| [Rust](https://www.rust-lang.org/) 1.98 (edición 2024) | Lenguaje de todo el proyecto. Se eligió porque no tiene recolector de basura: responde en tiempos predecibles aunque haya muchos estudiantes consultando a la vez. |
+| [Cargo](https://doc.rust-lang.org/cargo/) (workspace) | Compila, prueba y gestiona dependencias. Cada capa es un crate distinto, así el compilador impide que el dominio dependa de la infraestructura. |
+| `rustfmt` y `clippy` | Formateo automático del código y revisión de malas prácticas. |
+
+### Librerías (crates)
+
+| Crate | Para qué se usa | Dónde |
+|---|---|---|
+| [tokio](https://tokio.rs/) | Ejecuta código asíncrono: atiende muchas conexiones a la vez sin un hilo por cada una. | `server`, adaptadores |
+| [axum](https://github.com/tokio-rs/axum) | Servidor HTTP: la API que usa el estudiante y las sondas `/health` y `/ready`. | `adapters/gateway_http` |
+| [tonic](https://github.com/hyperium/tonic) | Servidor gRPC: por aquí la institución envía el catálogo y los cambios de cupo. | `adapters/grpc_catalog`, `adapters/grpc_events` |
+| [prost](https://github.com/tokio-rs/prost) y [protox](https://github.com/andrewhickman/protox) | Convierten los archivos `.proto` en código Rust. `protox` evita instalar `protoc`. | `proto` |
+| [async-nats](https://github.com/nats-io/nats.rs) | Cliente de NATS JetStream: escribe y lee el historial compartido del catálogo. | `adapters/nats_bus` |
+| [serde](https://serde.rs/) y `serde_json` | Convierten datos entre Rust y JSON (API HTTP y escenarios de simulación). | `gateway_http`, `simulation` |
+| [thiserror](https://github.com/dtolnay/thiserror) | Define los tipos de error de forma concisa. | `application` |
+| [tracing](https://github.com/tokio-rs/tracing) | Registro de lo que hace el motor (logs estructurados). | Todos los crates con I/O |
+| [criterion](https://github.com/bheisler/criterion.rs) | Mide el rendimiento del solver con estadísticas. | `solver/benches` |
+
+### Comunicación
+
+| Tecnología | Para qué se usa |
+|---|---|
+| **gRPC + Protocol Buffers** | Contrato entre la institución y el motor. Mensajes binarios, compactos y con tipos; la institución genera su SDK en su propio lenguaje a partir de los `.proto`. |
+| **HTTP + JSON** | API para el estudiante (provisional hasta el token firmado y el gateway definitivo). |
+| **[NATS JetStream](https://docs.nats.io/nats-concepts/jetstream)** | Historial compartido: la instancia de ingesta escribe los cambios del catálogo y todas las instancias los leen en el mismo orden. |
+
+### Despliegue e infraestructura
+
+| Tecnología | Para qué se usa |
+|---|---|
+| [Docker](https://www.docker.com/) | Empaqueta el motor en una sola imagen; la variable `SCHED_ROLE` decide qué hace cada contenedor. |
+| [Docker Compose](https://docs.docker.com/compose/) | Levanta en local NATS, la instancia de ingesta, varias instancias de consulta y el balanceador. |
+| [Traefik](https://traefik.io/traefik/) | Balanceador de carga: reparte las solicitudes entre las instancias y solo envía tráfico a las que ya tienen el catálogo al día. |
+| [GitHub Actions](https://docs.github.com/actions) | Integración continua: en cada push revisa formato, `clippy`, pruebas y la simulación. |
+
+### Planeadas (aún no implementadas)
+
+| Tecnología | Para qué se usará |
+|---|---|
+| **WebSocket** | Avisar en tiempo real al estudiante cuando cambia un cupo mientras arma su horario. |
+| **JWT firmado con Ed25519** | Recibir los datos del estudiante firmados por la institución, para que no se puedan alterar ([ADR 0004](docs/adr/0004-contexto-del-estudiante-en-token-firmado.md)). |
+
 ## Comandos
 
 ```sh

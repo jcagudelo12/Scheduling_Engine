@@ -1,0 +1,20 @@
+[package]
+name = "sched-solver"
+description = "Búsqueda de combinaciones de horario. Depende solo del dominio."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-domain.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "solver"
+harness = false
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "sched-simulation"
+description = "Harness de evaluación: corre el motor con perfiles de prueba y mide contra el baseline."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-adapter-in-memory.workspace = true
+sched-application.workspace = true
+sched-domain.workspace = true
+sched-proto.workspace = true
+sched-solver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+
+[[bin]]
+name = "sched-simulation"
+path = "src/main.rs"
+
+[[bin]]
+name = "fake-institution"
+path = "src/bin/fake_institution.rs"
+
+[lints]
+workspace = true

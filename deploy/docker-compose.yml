@@ -1,0 +1,76 @@
+# Despliegue local con varias instancias (ADR 0005):
+#
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#   docker compose -f deploy/docker-compose.yml up -d --scale engine=5   # más réplicas
+#
+# - nats:   JetStream con el historial compartido del catálogo (persistente).
+# - ingest: única instancia que recibe datos de la institución (gRPC :50051).
+# - engine: instancias de consulta, escalables; no exponen puertos al host.
+# - lb:     Traefik en :8080, reparte HTTP/WebSocket entre las instancias de consulta.
+#           Descubre las réplicas solo y únicamente envía tráfico a las "healthy"
+#           (su /ready responde 200). Panel de control en http://localhost:8090.
+
+x-engine: &engine
+  image: sched-engine:dev
+  environment: &engine-env
+    SCHED_NATS_URL: nats://nats:4222
+    RUST_LOG: info
+  depends_on:
+    - nats
+  restart: unless-stopped
+
+services:
+  nats:
+    image: nats:2
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+
+  ingest:
+    <<: *engine
+    # Solo este servicio construye la imagen; "engine" la reutiliza.
+    build:
+      context: ..
+    environment:
+      <<: *engine-env
+      SCHED_ROLE: ingest
+    ports:
+      - "50051:50051"
+
+  engine:
+    <<: *engine
+    pull_policy: never
+    environment:
+      <<: *engine-env
+      SCHED_ROLE: query
+    deploy:
+      replicas: 3
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.engine.rule: PathPrefix(`/`)
+      traefik.http.routers.engine.entrypoints: web
+      traefik.http.services.engine.loadbalancer.server.port: "8080"
+
+  lb:
+    image: traefik:v3
+    command:
+      - --providers.docker=true
+      # Solo los contenedores con traefik.enable=true (no la ingesta ni NATS).
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      # Panel y API en :8090; solo para desarrollo.
+      - --api.insecure=true
+      - --entrypoints.traefik.address=:8090
+    ports:
+      - "8080:80"
+      - "8090:8090"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+volumes:
+  nats-data:

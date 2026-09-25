@@ -1,0 +1,18 @@
+[package]
+name = "sched-adapter-gateway-http"
+description = "API HTTP para que el estudiante solicite combinaciones de horario."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-application.workspace = true
+sched-domain.workspace = true
+sched-solver.workspace = true
+axum.workspace = true
+serde.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

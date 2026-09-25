@@ -1,0 +1,18 @@
+[package]
+name = "sched-adapter-grpc-events"
+description = "Servidor gRPC que recibe los cambios incrementales del catálogo (ADR 0003)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-application.workspace = true
+sched-proto.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

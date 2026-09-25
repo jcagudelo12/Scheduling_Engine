@@ -1,0 +1,20 @@
+[package]
+name = "sched-adapter-nats-bus"
+description = "Historial compartido del catálogo sobre NATS JetStream (ADR 0005)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-application.workspace = true
+sched-domain.workspace = true
+sched-proto.workspace = true
+async-nats.workspace = true
+prost.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

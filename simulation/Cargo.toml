@@ -18,6 +18,13 @@ tokio.workspace = true
 tokio-stream.workspace = true
 tonic.workspace = true
 
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "catalog_lookup"
+harness = false
+
 [[bin]]
 name = "sched-simulation"
 path = "src/main.rs"

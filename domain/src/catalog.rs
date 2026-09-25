@@ -1,6 +1,6 @@
 //! Réplica del catálogo que envía la institución (ADR 0003).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 
 use crate::{CourseId, Section, SectionId};
@@ -66,16 +66,23 @@ struct Entry {
 pub struct Catalog {
     seq: u64,
     entries: HashMap<SectionId, Entry>,
+    /// Índice curso → grupos, para no recorrer todo el catálogo en cada consulta.
+    /// Los grupos van ordenados por id para que los resultados sean reproducibles.
+    by_course: HashMap<CourseId, BTreeSet<SectionId>>,
 }
 
 impl Catalog {
     /// Construye el catálogo a partir de una carga completa.
     pub fn load(seq: u64, sections: impl IntoIterator<Item = (Section, u32)>) -> Self {
-        let entries = sections
-            .into_iter()
-            .map(|(section, available)| (section.id.clone(), Entry { section, available }))
-            .collect();
-        Self { seq, entries }
+        let mut catalog = Self {
+            seq,
+            entries: HashMap::new(),
+            by_course: HashMap::new(),
+        };
+        for (section, available) in sections {
+            catalog.insert(section, available);
+        }
+        catalog
     }
 
     pub fn seq(&self) -> u64 {
@@ -94,14 +101,22 @@ impl Catalog {
         self.entries.get(section).map(|e| e.available)
     }
 
-    /// Grupos de los cursos indicados que aún tienen cupo.
+    /// Grupos de los cursos indicados que aún tienen cupo, curso por curso.
+    ///
+    /// El costo depende de cuántos grupos tienen esos cursos, no del tamaño del catálogo.
     pub fn open_sections_of<'a>(
         &'a self,
         courses: &'a [CourseId],
     ) -> impl Iterator<Item = &'a Section> {
-        self.entries
-            .values()
-            .filter(|e| e.available > 0 && courses.contains(&e.section.course))
+        courses
+            .iter()
+            .enumerate()
+            // Un curso repetido en la lista no debe repetir sus grupos.
+            .filter(|(i, course)| !courses[..*i].contains(course))
+            .filter_map(|(_, course)| self.by_course.get(course))
+            .flatten()
+            .filter_map(|id| self.entries.get(id))
+            .filter(|e| e.available > 0)
             .map(|e| &e.section)
     }
 
@@ -126,15 +141,45 @@ impl Catalog {
                 }
             }
             CatalogChange::SectionUpserted { section, available } => {
-                self.entries
-                    .insert(section.id.clone(), Entry { section, available });
+                self.insert(section, available);
             }
             CatalogChange::SectionRemoved { section } => {
-                self.entries.remove(&section);
+                self.remove(&section);
             }
         }
         self.seq = event.seq;
         Ok(ApplyOutcome::Applied)
+    }
+
+    /// Inserta o reemplaza un grupo manteniendo el índice por curso al día.
+    fn insert(&mut self, section: Section, available: u32) {
+        let id = section.id.clone();
+        let course = section.course.clone();
+        if let Some(previous) = self
+            .entries
+            .insert(id.clone(), Entry { section, available })
+        {
+            // Si el grupo cambió de curso, sale del índice del curso anterior.
+            if previous.section.course != course {
+                self.unindex(&previous.section.course, &id);
+            }
+        }
+        self.by_course.entry(course).or_default().insert(id);
+    }
+
+    fn remove(&mut self, id: &SectionId) {
+        if let Some(entry) = self.entries.remove(id) {
+            self.unindex(&entry.section.course, id);
+        }
+    }
+
+    fn unindex(&mut self, course: &CourseId, id: &SectionId) {
+        if let Some(ids) = self.by_course.get_mut(course) {
+            ids.remove(id);
+            if ids.is_empty() {
+                self.by_course.remove(course);
+            }
+        }
     }
 }
 
@@ -198,6 +243,75 @@ mod tests {
             })
         );
         assert_eq!(catalog.seq(), 10);
+    }
+
+    fn section_of(id: &str, course: &str) -> Section {
+        Section {
+            course: CourseId::new(course),
+            ..section(id)
+        }
+    }
+
+    fn open_ids(catalog: &Catalog, courses: &[&str]) -> Vec<String> {
+        let courses: Vec<_> = courses.iter().map(|c| CourseId::new(*c)).collect();
+        catalog
+            .open_sections_of(&courses)
+            .map(|s| s.id.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn only_sections_of_requested_courses_are_returned() {
+        let catalog = Catalog::load(
+            1,
+            [
+                (section_of("MAT-02", "MAT"), 5),
+                (section_of("ART-01", "ART"), 5),
+                (section_of("MAT-01", "MAT"), 5),
+                (section_of("FIS-01", "FIS"), 5),
+            ],
+        );
+        assert_eq!(
+            open_ids(&catalog, &["FIS", "MAT"]),
+            ["FIS-01", "MAT-01", "MAT-02"]
+        );
+    }
+
+    #[test]
+    fn repeated_courses_do_not_repeat_sections() {
+        let catalog = Catalog::load(1, [(section_of("MAT-01", "MAT"), 5)]);
+        assert_eq!(open_ids(&catalog, &["MAT", "MAT"]), ["MAT-01"]);
+    }
+
+    #[test]
+    fn index_follows_upserts_and_removals() {
+        let mut catalog = Catalog::load(1, [(section_of("X-01", "MAT"), 5)]);
+
+        // El grupo se reasigna a otro curso: debe salir del índice de MAT.
+        let moved = CatalogChange::SectionUpserted {
+            section: section_of("X-01", "FIS"),
+            available: 5,
+        };
+        catalog
+            .apply(CatalogEvent {
+                seq: 2,
+                change: moved,
+            })
+            .unwrap();
+        assert!(open_ids(&catalog, &["MAT"]).is_empty());
+        assert_eq!(open_ids(&catalog, &["FIS"]), ["X-01"]);
+
+        let removed = CatalogChange::SectionRemoved {
+            section: SectionId::new("X-01"),
+        };
+        catalog
+            .apply(CatalogEvent {
+                seq: 3,
+                change: removed,
+            })
+            .unwrap();
+        assert!(open_ids(&catalog, &["FIS"]).is_empty());
+        assert!(catalog.by_course.is_empty());
     }
 
     #[test]

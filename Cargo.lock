@@ -1752,6 +1752,7 @@ dependencies = [
 name = "sched-simulation"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "sched-adapter-in-memory",
  "sched-application",
  "sched-domain",

@@ -90,6 +90,7 @@ La institución empuja toda la información y el motor nunca la consulta
 cargo test --workspace                                        # pruebas
 cargo run -p sched-simulation --bin sched-simulation          # escenario de ejemplo
 cargo bench -p sched-solver                                   # benchmarks del solver
+cargo bench -p sched-simulation --bench catalog_lookup      # búsqueda en el catálogo
 ```
 
 ## Despliegue local con varias instancias

@@ -34,12 +34,11 @@ impl<S: Solver> GenerateCombinations<S> {
 
     pub fn execute(&self, student: &StudentContext) -> Result<Combinations, AppError> {
         let (catalog_seq, stale, candidates) = self.replica.read(|catalog, stale| {
-            let mut candidates: Vec<_> = catalog
+            // Llegan curso por curso y ordenados por id: resultados reproducibles.
+            let candidates: Vec<_> = catalog
                 .open_sections_of(&student.eligible_courses)
                 .cloned()
                 .collect();
-            // El catálogo no tiene orden; se fija para que los resultados sean reproducibles.
-            candidates.sort_by(|a, b| a.id.cmp(&b.id));
             (catalog.seq(), stale, candidates)
         })?;
 

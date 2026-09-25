@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package engine.v1;
+
+import "institution/v1/common.proto";
+import "institution/v1/catalog_events.proto";
+
+// Entrada del historial compartido del catálogo en NATS JetStream (ADR 0005).
+// Es un contrato interno entre instancias del motor, no lo usa la institución.
+message CatalogLogEntry {
+  oneof entry {
+    SnapshotChunk snapshot_chunk = 1;
+    institution.v1.CatalogEvent change = 2;
+    SyncLost sync_lost = 3;
+  }
+}
+
+// Una carga completa se guarda en varios bloques consecutivos con el mismo seq.
+message SnapshotChunk {
+  uint64 seq = 1;
+  uint32 index = 2;
+  uint32 total = 3;
+  repeated institution.v1.Section sections = 4;
+}
+
+// La instancia de ingesta perdió la sincronía con la institución.
+message SyncLost {
+  string reason = 1;
+}

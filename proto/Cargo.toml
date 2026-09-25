@@ -1,0 +1,19 @@
+[package]
+name = "sched-proto"
+description = "Contrato gRPC con la institución. Código generado desde los .proto."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sched-domain.workspace = true
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+
+[build-dependencies]
+protox.workspace = true
+tonic-prost-build.workspace = true
+
+# Sin `[lints] workspace = true`: el código generado no sigue nuestras reglas.

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package institution.v1;
+
+import "institution/v1/common.proto";
+
+// Cambios incrementales del catálogo (ADR 0003). La institución envía eventos en
+// orden estricto de seq; el motor responde a cada uno con un SyncStatus.
+service CatalogEventsService {
+  rpc SyncChanges(stream CatalogEvent) returns (stream SyncStatus);
+}
+
+message CatalogEvent {
+  uint64 seq = 1;
+  oneof change {
+    SeatsChanged seats_changed = 2;
+    SectionUpserted section_upserted = 3;
+    SectionRemoved section_removed = 4;
+  }
+}
+
+message SeatsChanged {
+  string section_id = 1;
+  uint32 available_seats = 2;
+}
+
+message SectionUpserted {
+  Section section = 1;
+}
+
+message SectionRemoved {
+  string section_id = 1;
+}
+
+message SyncStatus {
+  oneof status {
+    // Evento aplicado (o ya aplicado antes, si seq estaba repetido).
+    Ack ack = 1;
+    // Se detectó un hueco: la institución debe llamar a CatalogService.LoadCatalog.
+    ResyncRequired resync_required = 2;
+    // El evento no se pudo procesar (datos inválidos, catálogo sin cargar).
+    Rejected rejected = 3;
+  }
+}
+
+message Ack {
+  uint64 seq = 1;
+}
+
+message ResyncRequired {
+  uint64 expected_seq = 1;
+  uint64 received_seq = 2;
+}
+
+message Rejected {
+  uint64 seq = 1;
+  string reason = 2;
+}

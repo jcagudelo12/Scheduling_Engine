@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package institution.v1;
+
+enum Weekday {
+  WEEKDAY_UNSPECIFIED = 0;
+  WEEKDAY_MONDAY = 1;
+  WEEKDAY_TUESDAY = 2;
+  WEEKDAY_WEDNESDAY = 3;
+  WEEKDAY_THURSDAY = 4;
+  WEEKDAY_FRIDAY = 5;
+  WEEKDAY_SATURDAY = 6;
+  WEEKDAY_SUNDAY = 7;
+}
+
+// Franja semanal [start_minute, end_minute) en minutos desde la medianoche.
+message TimeSlot {
+  Weekday day = 1;
+  uint32 start_minute = 2;
+  uint32 end_minute = 3;
+}
+
+message Section {
+  string section_id = 1;
+  string course_id = 2;
+  repeated TimeSlot slots = 3;
+  uint32 capacity = 4;
+  uint32 available_seats = 5;
+}

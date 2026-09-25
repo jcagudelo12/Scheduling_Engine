@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package institution.v1;
+
+import "institution/v1/common.proto";
+
+// Carga completa del catálogo (ADR 0003). La institución la invoca al conectarse
+// y cada vez que el motor responde ResyncRequired en CatalogEventsService.
+service CatalogService {
+  rpc LoadCatalog(stream CatalogChunk) returns (LoadCatalogResponse);
+}
+
+// El catálogo se envía en bloques; todos los bloques de una carga llevan el mismo seq.
+message CatalogChunk {
+  uint64 seq = 1;
+  repeated Section sections = 2;
+}
+
+message LoadCatalogResponse {
+  uint64 seq = 1;
+  uint32 sections_loaded = 2;
+}

@@ -27,8 +27,8 @@ Adaptadores de entrada involucrados:
 
 | Adaptador | Servicio gRPC | Qué recibe |
 |---|---|---|
-| `adapters/grpc_catalog` | `CatalogService.LoadCatalog` | Carga completa del catálogo |
-| `adapters/grpc_events` | `CatalogEventsService.SyncChanges` | Cambios incrementales, con acuse |
+| `rust/adapters/grpc_catalog` | `CatalogService.LoadCatalog` | Carga completa del catálogo |
+| `rust/adapters/grpc_events` | `CatalogEventsService.SyncChanges` | Cambios incrementales, con acuse |
 
 El contrato vive en `proto/institution/v1/` y es la base del SDK: la institución genera
 el cliente en su propio lenguaje a partir de los `.proto`.

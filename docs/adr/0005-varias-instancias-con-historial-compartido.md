@@ -34,7 +34,7 @@ catálogo, con **un solo escritor**.
 - `SCHED_ROLE=all` combina ambos roles para desarrollo o despliegues pequeños.
 
 En hexagonal: el puerto de salida `CatalogLog` tiene dos implementaciones, JetStream
-(`adapters/nats_bus`) y en memoria (`adapters/in_memory`, para simulación y pruebas),
+(`rust/adapters/nats_bus`) y en memoria (`rust/adapters/in_memory`, para simulación y pruebas),
 así que el flujo de ingesta es el mismo con una o con N instancias. Las entradas se
 serializan con protobuf (`proto/engine/v1/catalog_log.proto`).
 

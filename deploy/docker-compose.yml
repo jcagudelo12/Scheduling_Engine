@@ -35,6 +35,7 @@ services:
     # Solo este servicio construye la imagen; "engine" la reutiliza.
     build:
       context: ..
+      dockerfile: rust/Dockerfile
     environment:
       <<: *engine-env
       SCHED_ROLE: ingest

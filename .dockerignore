@@ -1,6 +1,7 @@
-target/
+**/target/
 .git/
 .github/
 docs/
 deploy/
+bench/results/
 simulation/results/

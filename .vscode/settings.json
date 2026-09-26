@@ -1,0 +1,4 @@
+{
+  // El workspace de Rust está en rust/, no en la raíz del repo.
+  "rust-analyzer.linkedProjects": ["rust/Cargo.toml"]
+}

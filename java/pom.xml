@@ -31,6 +31,7 @@
         <module>adapters/nats-bus</module>
         <module>adapters/gateway-http</module>
         <module>server</module>
+        <module>benchmarks</module>
     </modules>
 
     <properties>

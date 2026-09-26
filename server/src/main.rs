@@ -3,6 +3,7 @@
 mod config;
 
 use std::future::Future;
+use std::io::IsTerminal;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,10 +29,16 @@ type Task = Pin<Box<dyn Future<Output = Result<(), BoxError>> + Send>>;
 async fn main() -> Result<(), BoxError> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        // Sin códigos de color cuando la salida no es una terminal (p. ej. en contenedores).
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
 
     let config = Config::from_env()?;
     tracing::info!(?config, "iniciando motor de horarios");
+    // tokio crea un hilo de trabajo por CPU detectada; en un contenedor debe coincidir con
+    // su límite de CPU. La comparación de rendimiento (bench/) verifica este valor.
+    let cpus = std::thread::available_parallelism().map_or(0, |n| n.get());
+    tracing::info!(cpus, "CPUs detectadas");
 
     // Historial compartido y réplica local (todas las instancias).
     let nats = async_nats::connect(&config.nats_url).await?;

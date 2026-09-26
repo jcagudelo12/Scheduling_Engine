@@ -1,0 +1,56 @@
+# Entorno de comparación Rust vs Java. Lo usa bench/run.sh, que levanta UN motor a la vez
+# (desde cero, con NATS vacío) para que ambos corran en condiciones idénticas:
+#
+# - Mismos núcleos fijos para el motor medido (ENGINE_CPUS), sin compartir núcleo físico
+#   con nada más. NATS y k6 usan otros núcleos.
+# - Mismo límite de memoria, mismo catálogo, misma configuración.
+
+name: bench
+
+x-engine: &engine
+  cpuset: ${ENGINE_CPUS:-4,6}
+  mem_limit: 1g
+  depends_on: [nats]
+
+services:
+  nats:
+    image: nats:2
+    command: ["-js"]
+    cpuset: ${NATS_CPUS:-2,3}
+
+  rust:
+    <<: *engine
+    image: sched-engine:dev
+    build:
+      context: ..
+      dockerfile: rust/Dockerfile
+    environment:
+      SCHED_ROLE: all
+      SCHED_NATS_URL: nats://nats:4222
+      SCHED_NATS_STREAM: RUST_CATALOG
+      SCHED_NATS_SUBJECT_PREFIX: rust
+      SCHED_MAX_COMBINATIONS: "50"
+      RUST_LOG: warn,sched_server=info
+    ports:
+      # Solo para cargar el catálogo y consultar /ready desde el host. La carga de k6
+      # entra por la red interna de Docker, sin pasar por el proxy de puertos.
+      - "18080:8080"
+      - "15051:50051"
+
+  java:
+    <<: *engine
+    image: sched-engine-java:dev
+    build:
+      context: ..
+      dockerfile: java/Dockerfile
+    environment:
+      SCHED_ROLE: all
+      SCHED_NATS_URL: nats://nats:4222
+      SCHED_NATS_STREAM: JAVA_CATALOG
+      SCHED_NATS_SUBJECT_PREFIX: java
+      SCHED_MAX_COMBINATIONS: "50"
+      LOGGING_LEVEL_ROOT: warn
+      LOGGING_LEVEL_SCHED_SERVER: info
+    ports:
+      - "28080:8080"
+      - "25051:50051"

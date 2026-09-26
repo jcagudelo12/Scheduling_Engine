@@ -29,6 +29,8 @@
         <module>adapters/grpc-catalog</module>
         <module>adapters/grpc-events</module>
         <module>adapters/nats-bus</module>
+        <module>adapters/gateway-http</module>
+        <module>server</module>
     </modules>
 
     <properties>

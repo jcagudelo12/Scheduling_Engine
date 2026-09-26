@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package engine.v1;
 
+// Solo afectan al código generado para Java (versión de comparación en java/).
+option java_package = "sched.proto.engine.v1";
+option java_multiple_files = true;
+
 import "institution/v1/common.proto";
 import "institution/v1/catalog_events.proto";
 

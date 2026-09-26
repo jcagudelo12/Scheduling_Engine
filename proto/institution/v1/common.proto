@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package institution.v1;
 
+// Solo afectan al código generado para Java (versión de comparación en java/).
+option java_package = "sched.proto.institution.v1";
+option java_multiple_files = true;
+
 enum Weekday {
   WEEKDAY_UNSPECIFIED = 0;
   WEEKDAY_MONDAY = 1;

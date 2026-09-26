@@ -28,3 +28,17 @@ jobs:
       - run: cargo clippy --workspace --all-targets
       - run: cargo test --workspace
       - run: cargo run -p sched-simulation --bin sched-simulation
+
+  java:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - run: ./mvnw -B verify

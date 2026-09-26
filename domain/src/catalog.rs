@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::fmt;
+use std::sync::Arc;
 
 use crate::{CourseId, Section, SectionId};
 
@@ -57,7 +58,7 @@ impl std::error::Error for SequenceGap {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Entry {
-    section: Section,
+    section: Arc<Section>,
     available: u32,
 }
 
@@ -107,7 +108,7 @@ impl Catalog {
     pub fn open_sections_of<'a>(
         &'a self,
         courses: &'a [CourseId],
-    ) -> impl Iterator<Item = &'a Section> {
+    ) -> impl Iterator<Item = &'a Arc<Section>> {
         courses
             .iter()
             .enumerate()
@@ -155,10 +156,13 @@ impl Catalog {
     fn insert(&mut self, section: Section, available: u32) {
         let id = section.id.clone();
         let course = section.course.clone();
-        if let Some(previous) = self
-            .entries
-            .insert(id.clone(), Entry { section, available })
-        {
+        if let Some(previous) = self.entries.insert(
+            id.clone(),
+            Entry {
+                section: Arc::new(section),
+                available,
+            },
+        ) {
             // Si el grupo cambió de curso, sale del índice del curso anterior.
             if previous.section.course != course {
                 self.unindex(&previous.section.course, &id);

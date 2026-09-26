@@ -1,4 +1,5 @@
 use std::hint::black_box;
+use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use sched_domain::{CourseId, Section, SectionId, TimeSlot, Weekday};
@@ -20,12 +21,12 @@ fn synthetic_problem(courses: usize, sections_per_course: usize) -> Problem {
         for s in 0..sections_per_course {
             let day = DAYS[(c + s) % DAYS.len()];
             let start = 360 + ((c * 7 + s * 3) % 7) as u16 * 120;
-            candidates.push(Section {
+            candidates.push(Arc::new(Section {
                 id: SectionId::new(format!("C{c}-{s}")),
                 course: CourseId::new(format!("C{c}")),
                 slots: vec![TimeSlot::new(day, start, start + 120).unwrap()],
                 capacity: 30,
-            });
+            }));
         }
     }
     Problem {

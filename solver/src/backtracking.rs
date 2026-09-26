@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sched_domain::{Schedule, Section};
 
 use crate::{Problem, Solver};
@@ -10,7 +12,7 @@ pub struct BacktrackingSolver;
 
 impl Solver for BacktrackingSolver {
     fn solve(&self, problem: &Problem) -> Vec<Schedule> {
-        let options: Vec<Vec<&Section>> = problem
+        let options: Vec<Vec<&Arc<Section>>> = problem
             .courses
             .iter()
             .map(|course| {
@@ -35,8 +37,8 @@ impl Solver for BacktrackingSolver {
 }
 
 fn search<'a>(
-    options: &[Vec<&'a Section>],
-    current: &mut Vec<&'a Section>,
+    options: &[Vec<&'a Arc<Section>>],
+    current: &mut Vec<&'a Arc<Section>>,
     results: &mut Vec<Schedule>,
     max_results: usize,
 ) {
@@ -45,7 +47,8 @@ fn search<'a>(
     }
     let Some((course_options, rest)) = options.split_first() else {
         results.push(Schedule {
-            sections: current.iter().map(|s| (*s).clone()).collect(),
+            // Solo se incrementa el contador de referencias; los grupos no se copian.
+            sections: current.iter().map(|s| Arc::clone(s)).collect(),
         });
         return;
     };
@@ -77,7 +80,7 @@ mod tests {
     fn problem(courses: &[&str], candidates: Vec<Section>) -> Problem {
         Problem {
             courses: courses.iter().map(|c| CourseId::new(*c)).collect(),
-            candidates,
+            candidates: candidates.into_iter().map(Arc::new).collect(),
             max_results: 100,
         }
     }

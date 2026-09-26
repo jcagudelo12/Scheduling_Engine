@@ -7,13 +7,15 @@ mod backtracking;
 
 pub use backtracking::BacktrackingSolver;
 
+use std::sync::Arc;
+
 use sched_domain::{CourseId, Schedule, Section};
 
 /// Entrada del solver: cursos a cubrir y grupos candidatos (ya filtrados por cupo).
 #[derive(Debug, Clone)]
 pub struct Problem {
     pub courses: Vec<CourseId>,
-    pub candidates: Vec<Section>,
+    pub candidates: Vec<Arc<Section>>,
     pub max_results: usize,
 }
 

@@ -25,6 +25,10 @@
         <module>solver</module>
         <module>application</module>
         <module>proto</module>
+        <module>adapters/in-memory</module>
+        <module>adapters/grpc-catalog</module>
+        <module>adapters/grpc-events</module>
+        <module>adapters/nats-bus</module>
     </modules>
 
     <properties>

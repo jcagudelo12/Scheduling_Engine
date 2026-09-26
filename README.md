@@ -1,26 +1,41 @@
 # Scheduling Engine
 
-Motor de generación de combinaciones de horario para estudiantes, en Rust.
+Motor de generación de combinaciones de horario para estudiantes. Hay dos implementaciones
+con la misma funcionalidad, para comparar lenguajes: Rust (la principal) y Java.
+
+## Estructura del repositorio
+
+```
+proto/        contrato gRPC y mensajes internos (.proto), compartido por ambas versiones
+rust/         versión en Rust: workspace de Cargo con un crate por capa
+java/         versión en Java: proyecto Maven con un módulo por capa (ver java/README.md)
+bench/        comparación de rendimiento Rust vs Java (ver bench/README.md)
+deploy/       despliegue local con varias instancias (un compose por versión)
+docs/adr/     decisiones de arquitectura
+```
 
 ## Arquitectura
 
-Hexagonal, con un crate por capa ([ADR 0001](docs/adr/0001-arquitectura-hexagonal.md)):
+Hexagonal, con un crate por capa ([ADR 0001](docs/adr/0001-arquitectura-hexagonal.md)).
+En la versión en Rust:
 
 ```
-domain/            sched-domain       modelo puro, sin dependencias
-solver/            sched-solver       búsqueda de combinaciones (depende de domain)
-application/       sched-application  casos de uso y puertos (traits)
-proto/             sched-proto        contrato gRPC con la institución
-adapters/
-  gateway_http/        API HTTP para el estudiante
-  grpc_catalog/        servidor gRPC: carga completa del catálogo desde el SDK
-  grpc_events/         servidor gRPC: cambios incrementales del catálogo
-  nats_bus/            historial compartido del catálogo en NATS JetStream
-  in_memory/           historial en memoria (simulación y pruebas)
-simulation/        sched-simulation   harness de evaluación e institución simulada
-server/            sched-server       binario de composición
-docs/adr/          decisiones de arquitectura
+rust/
+  domain/            sched-domain       modelo puro, sin dependencias
+  solver/            sched-solver       búsqueda de combinaciones (depende de domain)
+  application/       sched-application  casos de uso y puertos (traits)
+  proto/             sched-proto        código generado desde ../proto + conversiones
+  adapters/
+    gateway_http/        API HTTP para el estudiante
+    grpc_catalog/        servidor gRPC: carga completa del catálogo desde el SDK
+    grpc_events/         servidor gRPC: cambios incrementales del catálogo
+    nats_bus/            historial compartido del catálogo en NATS JetStream
+    in_memory/           historial en memoria (simulación y pruebas)
+  simulation/        sched-simulation   harness de evaluación e institución simulada
+  server/            sched-server       binario de composición
 ```
+
+La versión en Java tiene exactamente las mismas capas; ver [`java/README.md`](java/README.md).
 
 ## Flujo de datos
 
@@ -36,7 +51,15 @@ La institución empuja toda la información y el motor nunca la consulta
   institución ([ADR 0004](docs/adr/0004-contexto-del-estudiante-en-token-firmado.md),
   pendiente: hoy el endpoint HTTP lo recibe sin firmar).
 
-## Tecnologías
+## Versión en Java y comparación de rendimiento
+
+La réplica en Java (Spring Boot) está en [`java/`](java/README.md), con la misma
+funcionalidad y el mismo contrato. Los resultados de la comparación y la metodología están en
+[`bench/README.md`](bench/README.md).
+
+## Tecnologías de la versión en Rust
+
+Las equivalencias en Java están en [`java/README.md`](java/README.md).
 
 ### Lenguaje y herramientas base
 
@@ -50,15 +73,15 @@ La institución empuja toda la información y el motor nunca la consulta
 
 | Crate | Para qué se usa | Dónde |
 |---|---|---|
-| [tokio](https://tokio.rs/) | Ejecuta código asíncrono: atiende muchas conexiones a la vez sin un hilo por cada una. | `server`, adaptadores |
-| [axum](https://github.com/tokio-rs/axum) | Servidor HTTP: la API que usa el estudiante y las sondas `/health` y `/ready`. | `adapters/gateway_http` |
-| [tonic](https://github.com/hyperium/tonic) | Servidor gRPC: por aquí la institución envía el catálogo y los cambios de cupo. | `adapters/grpc_catalog`, `adapters/grpc_events` |
-| [prost](https://github.com/tokio-rs/prost) y [protox](https://github.com/andrewhickman/protox) | Convierten los archivos `.proto` en código Rust. `protox` evita instalar `protoc`. | `proto` |
-| [async-nats](https://github.com/nats-io/nats.rs) | Cliente de NATS JetStream: escribe y lee el historial compartido del catálogo. | `adapters/nats_bus` |
+| [tokio](https://tokio.rs/) | Ejecuta código asíncrono: atiende muchas conexiones a la vez sin un hilo por cada una. | `rust/server`, adaptadores |
+| [axum](https://github.com/tokio-rs/axum) | Servidor HTTP: la API que usa el estudiante y las sondas `/health` y `/ready`. | `rust/adapters/gateway_http` |
+| [tonic](https://github.com/hyperium/tonic) | Servidor gRPC: por aquí la institución envía el catálogo y los cambios de cupo. | `rust/adapters/grpc_catalog`, `rust/adapters/grpc_events` |
+| [prost](https://github.com/tokio-rs/prost) y [protox](https://github.com/andrewhickman/protox) | Convierten los archivos `.proto` en código Rust. `protox` evita instalar `protoc`. | `rust/proto` |
+| [async-nats](https://github.com/nats-io/nats.rs) | Cliente de NATS JetStream: escribe y lee el historial compartido del catálogo. | `rust/adapters/nats_bus` |
 | [serde](https://serde.rs/) y `serde_json` | Convierten datos entre Rust y JSON (API HTTP y escenarios de simulación). | `gateway_http`, `simulation` |
 | [thiserror](https://github.com/dtolnay/thiserror) | Define los tipos de error de forma concisa. | `application` |
 | [tracing](https://github.com/tokio-rs/tracing) | Registro de lo que hace el motor (logs estructurados). | Todos los crates con I/O |
-| [criterion](https://github.com/bheisler/criterion.rs) | Mide el rendimiento del solver con estadísticas. | `solver/benches` |
+| [criterion](https://github.com/bheisler/criterion.rs) | Mide el rendimiento del solver con estadísticas. | `rust/solver/benches` |
 
 ### Comunicación
 
@@ -86,21 +109,29 @@ La institución empuja toda la información y el motor nunca la consulta
 
 ## Comandos
 
+Versión en Rust (desde `rust/`):
+
 ```sh
+cd rust
 cargo test --workspace                                        # pruebas
 cargo run -p sched-simulation --bin sched-simulation          # escenario de ejemplo
 cargo bench -p sched-solver                                   # benchmarks del solver
-cargo bench -p sched-simulation --bench catalog_lookup      # búsqueda en el catálogo
+cargo bench -p sched-simulation --bench catalog_lookup        # búsqueda en el catálogo
 ```
+
+Versión en Java (desde `java/`): `./mvnw verify`. Ver [`java/README.md`](java/README.md).
 
 ## Despliegue local con varias instancias
 
-```sh
-docker compose -f deploy/docker-compose.yml up -d --build     # NATS, ingesta, 3 consultas, Traefik
+Desde la raíz del repo:
 
-# Institución simulada: carga el catálogo y envía un cambio de cupo
-cargo run -p sched-simulation --bin fake-institution -- load
-cargo run -p sched-simulation --bin fake-institution -- seats 2 MAT101-01 0
+```sh
+docker compose -f deploy/docker-compose.yml up -d --build        # versión en Rust
+docker compose -f deploy/docker-compose.java.yml up -d --build   # o la versión en Java (mismos puertos)
+
+# Institución simulada (sirve para cualquiera de las dos): carga el catálogo y envía un cambio
+cargo run --manifest-path rust/Cargo.toml -p sched-simulation --bin fake-institution -- load
+cargo run --manifest-path rust/Cargo.toml -p sched-simulation --bin fake-institution -- seats 2 MAT101-01 0
 
 curl -X POST localhost:8080/combinations -H 'content-type: application/json' \
   -d '{"student_id":"est-001","eligible_courses":["MAT101","FIS101"]}'
@@ -116,5 +147,5 @@ docker compose -f deploy/docker-compose.yml up -d --scale engine=5   # más rép
 | `nats` | JetStream con el historial | `:4222`, monitoreo `:8222` |
 
 Cada instancia expone `/health` y `/ready` (lista cuando su réplica está al día).
-La configuración se lee de variables `SCHED_*`; ver `server/src/config.rs`.
-Los `.proto` se compilan con `protox`, así que no hace falta instalar `protoc`.
+La configuración se lee de variables `SCHED_*`; ver `rust/server/src/config.rs`.
+Rust compila los `.proto` con `protox`, así que no hace falta instalar `protoc`.

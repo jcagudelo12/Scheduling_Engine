@@ -23,6 +23,8 @@
     <modules>
         <module>domain</module>
         <module>solver</module>
+        <module>application</module>
+        <module>proto</module>
     </modules>
 
     <properties>

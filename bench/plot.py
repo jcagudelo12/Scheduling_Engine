@@ -120,8 +120,11 @@ def latency_chart(results, rates, out, mode):
         end_label(ax, rates[-1], value, text, t)
 
     ax.set_yscale("log")
-    ax.set_ylim(0.5, 2000)
-    ax.yaxis.set_major_locator(FixedLocator([1, 10, 100, 1000]))
+    # El eje llega a la siguiente potencia de 10 por encima del valor más alto.
+    top = max(max(p["p99_max"] for e in ENGINES for p in (results.phase(e, f"r{r}") for r in rates)), 5)
+    decades = [d for d in (1, 10, 100, 1000) if d <= top * 10]
+    ax.set_ylim(min(0.2, top), 10 ** (len(str(int(top)))) * 2)
+    ax.yaxis.set_major_locator(FixedLocator(decades))
     ax.yaxis.set_minor_locator(NullLocator())
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: "1 s" if v >= 1000 else f"{v:g} ms"))
     rate_axis(ax, rates, t)

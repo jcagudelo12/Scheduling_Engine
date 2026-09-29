@@ -1548,6 +1548,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlimit"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f35ee2729c56bb610f6dba436bf78135f728b7373bdffae2ec815b2d3eb98cc3"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1736,6 +1745,7 @@ version = "0.1.0"
 dependencies = [
  "async-nats",
  "axum",
+ "rlimit",
  "sched-adapter-gateway-http",
  "sched-adapter-grpc-catalog",
  "sched-adapter-grpc-events",

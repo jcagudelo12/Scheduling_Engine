@@ -17,6 +17,7 @@ use sched_application::use_cases::{
 };
 use sched_application::{CatalogReplica, IngestState, Readiness};
 use sched_solver::BacktrackingSolver;
+use tokio::net::TcpSocket;
 use tonic::transport::Server;
 use tracing_subscriber::EnvFilter;
 
@@ -39,6 +40,7 @@ async fn main() -> Result<(), BoxError> {
     // su límite de CPU. La comparación de rendimiento (bench/) verifica este valor.
     let cpus = std::thread::available_parallelism().map_or(0, |n| n.get());
     tracing::info!(cpus, "CPUs detectadas");
+    raise_open_files_limit();
 
     // Historial compartido y réplica local (todas las instancias).
     let nats = async_nats::connect(&config.nats_url).await?;
@@ -62,7 +64,7 @@ async fn main() -> Result<(), BoxError> {
             GenerateCombinations::new(BacktrackingSolver, replica.clone(), config.max_combinations);
         app = app.merge(router(Arc::new(generate)));
     }
-    let listener = tokio::net::TcpListener::bind(config.http_addr).await?;
+    let listener = bind_http(config.http_addr)?;
     let mut tasks: Vec<Task> = vec![Box::pin(async move {
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_signal())
@@ -91,6 +93,33 @@ async fn main() -> Result<(), BoxError> {
 
     tracing::info!(http = %config.http_addr, role = ?config.role, "escuchando");
     try_join_all(tasks).await
+}
+
+/// Cada conexión abierta ocupa un descriptor de archivo. El límite blando por defecto (1.024
+/// en muchos sistemas y contenedores) hace fallar `accept` con muchos estudiantes conectados
+/// a la vez. Se sube hasta el límite duro, igual que hace la JVM al arrancar.
+fn raise_open_files_limit() {
+    match rlimit::increase_nofile_limit(u64::MAX) {
+        Ok(limit) => tracing::info!(limit, "límite de archivos abiertos"),
+        Err(err) => tracing::warn!(%err, "no se pudo subir el límite de archivos abiertos"),
+    }
+}
+
+/// Cola de conexiones pendientes del socket HTTP. El valor por defecto de tokio (1.024) se
+/// desborda cuando llegan muchas conexiones nuevas a la vez (p. ej. al abrir la matrícula) y
+/// las conexiones descartadas quedan esperando reintentos de TCP. El kernel lo limita a
+/// `net.core.somaxconn`.
+const HTTP_BACKLOG: u32 = 4096;
+
+fn bind_http(addr: std::net::SocketAddr) -> std::io::Result<tokio::net::TcpListener> {
+    let socket = if addr.is_ipv4() {
+        TcpSocket::new_v4()?
+    } else {
+        TcpSocket::new_v6()?
+    };
+    socket.set_reuseaddr(true)?;
+    socket.bind(addr)?;
+    socket.listen(HTTP_BACKLOG)
 }
 
 async fn wait_until_ready(readiness: &Readiness) {

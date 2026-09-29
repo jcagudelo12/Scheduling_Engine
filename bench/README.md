@@ -121,6 +121,50 @@ la excepción es Java a partir de 3.000/s (10–22 ms y 428–803 ms), cuando ya
 
 Entre corridas estos valores varían alrededor de un 7 %; la proporción entre los dos se mantiene.
 
+## Variante: 5 combinaciones por respuesta (29-09-2026)
+
+Mismo entorno y metodología, pero cada respuesta trae hasta **5 combinaciones** en lugar de 50
+(`MAX_COMBINATIONS=5 OUT=bench/results-top5`), que es lo que realmente verá el estudiante.
+Reporte completo en [`results-top5/report.md`](results-top5/report.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="results-top5/latency-p99-dark.png">
+  <img alt="Latencia p99 con 5 combinaciones: Rust entre 0,5 y 3 ms y Java entre 1,5 y 4 ms hasta 6.000 solicitudes por segundo; a 8.000, Rust 2,9 ms y Java 9,8 ms. Ninguno se satura." src="results-top5/latency-p99.png">
+</picture>
+
+| Solicitudes/s | Rust p99 | Rust CPU | Java p99 | Java CPU |
+|---|---|---|---|---|
+| 200 (en frío) | 0,53 | 6 % | 3,83 | 48 % |
+| 1.000 | 0,57 | 22 % | 1,61 | 50 % |
+| 2.000 | 0,69 | 40 % | 1,55 | 60 % |
+| 3.000 | 0,75 | 49 % | 1,63 | 56 % |
+| 4.000 | 1,31 | 68 % | 2,92 | 67 % |
+| 6.000 | 2,07 | 78 % | 3,95 | 83 % |
+| 8.000 | 2,92 | 83 % | 9,82 | 112 % |
+
+Latencias en ms; CPU sobre 200 %. Ninguna versión tuvo errores ni solicitudes descartadas.
+
+- **Con 5 combinaciones, ninguna de las dos se satura hasta 8.000/s.** Java pasa de colapsar
+  a 4.000/s (con 50) a sostener 8.000/s: generar y serializar muchas combinaciones era la
+  mayor parte del costo.
+- **Rust mantiene la ventaja en la cola** (p99 entre 2 y 3 veces menor) y en memoria
+  (62 MB frente a 360 MB bajo carga), pero la diferencia práctica se reduce: hasta 6.000/s
+  ambas responden el 99 % de las solicitudes en menos de 4 ms.
+
+### Defectos encontrados en Rust durante esta medición
+
+Con más de ~1.000 conexiones simultáneas, el servidor en Rust dejaba conexiones colgadas
+(la primera corrida a 6.000 y 8.000/s duró el doble de lo previsto). Eran dos límites por
+defecto, ya corregidos en `rust/server/src/main.rs`:
+
+1. **Cola de conexiones pendientes** de 1.024 (valor de tokio): se desbordaba y el kernel
+   descartaba conexiones (`ListenOverflows`). Se amplió a 4.096.
+2. **Límite de archivos abiertos** del proceso de 1.024: `accept` fallaba con "Too many open
+   files". Ahora el servidor lo sube al arrancar hasta el límite del sistema, igual que la JVM.
+
+Los resultados con 50 combinaciones no se vieron afectados: a esas tasas nunca se superaron
+las 1.024 conexiones (todas las corridas duraron exactamente 30 s).
+
 ## Interpretación
 
 1. **Hasta 2.000 solicitudes por segundo, las dos cumplen de sobra.** Con 2 CPUs, el 99 % de

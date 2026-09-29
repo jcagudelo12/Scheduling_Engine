@@ -26,7 +26,8 @@ export const options = {
       timeUnit: '1s',
       duration: DURATION,
       preAllocatedVUs: Math.max(50, RATE / 5),
-      maxVUs: Math.max(200, RATE * 2),
+      // Tope de 8.000 usuarios virtuales para no agotar la memoria del generador.
+      maxVUs: Math.min(8000, Math.max(200, RATE * 2)),
     },
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],

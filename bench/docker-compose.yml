@@ -29,7 +29,7 @@ services:
       SCHED_NATS_URL: nats://nats:4222
       SCHED_NATS_STREAM: RUST_CATALOG
       SCHED_NATS_SUBJECT_PREFIX: rust
-      SCHED_MAX_COMBINATIONS: "50"
+      SCHED_MAX_COMBINATIONS: ${MAX_COMBINATIONS:-50}
       RUST_LOG: warn,sched_server=info
     ports:
       # Solo para cargar el catálogo y consultar /ready desde el host. La carga de k6
@@ -48,7 +48,7 @@ services:
       SCHED_NATS_URL: nats://nats:4222
       SCHED_NATS_STREAM: JAVA_CATALOG
       SCHED_NATS_SUBJECT_PREFIX: java
-      SCHED_MAX_COMBINATIONS: "50"
+      SCHED_MAX_COMBINATIONS: ${MAX_COMBINATIONS:-50}
       LOGGING_LEVEL_ROOT: warn
       LOGGING_LEVEL_SCHED_SERVER: info
     ports:

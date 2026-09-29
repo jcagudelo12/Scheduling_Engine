@@ -22,8 +22,8 @@ target
 
 # Comparación Rust vs Java: el catálogo se genera y los datos crudos se regeneran con bench/run.sh
 bench/scenario.json
-bench/results/*.json
-bench/results/*.txt
+bench/results*/*.json
+bench/results*/*.txt
 jmh-result.*
 bench/students.json
 bench/.venv/

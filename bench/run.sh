@@ -3,6 +3,8 @@
 #
 #   bench/run.sh                                  # 3 repeticiones, tasas por defecto
 #   REPS=5 RATES="500 1000" DURATION=60s bench/run.sh
+#   MAX_COMBINATIONS=5 OUT=bench/results-top5 bench/run.sh   # otra variante, en otra carpeta
+#   ENGINES=java bench/run.sh                                 # un solo motor
 #
 # Cada corrida (motor × repetición) parte de cero: NATS vacío, un solo motor encendido, los
 # mismos núcleos, el mismo catálogo y los mismos estudiantes en el mismo orden. El orden de
@@ -11,6 +13,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REPS=${REPS:-3}
+ENGINES=${ENGINES:-"rust java"}             # p. ej. ENGINES=java para medir solo uno
 RATES=${RATES:-"250 500 1000 2000 3000 4000"}
 DURATION=${DURATION:-30s}
 COOLDOWN=${COOLDOWN:-5}
@@ -20,7 +23,8 @@ K6_CPUS=${K6_CPUS:-8-15}
 EXPECTED_CPUS=$(( $(tr ',' '\n' <<< "$ENGINE_CPUS" | wc -l) ))
 
 C="docker compose -f bench/docker-compose.yml"
-OUT=bench/results
+OUT=${OUT:-bench/results}   # debe estar dentro de bench/ (se monta en el contenedor de k6)
+export MAX_COMBINATIONS=${MAX_COMBINATIONS:-50}   # combinaciones por respuesta
 declare -A HTTP=([rust]=18080 [java]=28080)
 declare -A GRPC=([rust]=15051 [java]=25051)
 
@@ -51,7 +55,7 @@ run_k6() { # motor prefijo tasa duración nombre
   docker run --rm --network bench_default --cpuset-cpus "$K6_CPUS" -u "$(id -u):$(id -g)" \
     -v "$PWD/bench:/bench" -w /bench \
     -e TARGET="http://$engine:8080" -e RATE="$rate" -e DURATION="$duration" \
-    -e OUT="/bench/results/${prefix}_${name}.json" \
+    -e OUT="/${OUT}/${prefix}_${name}.json" \
     grafana/k6 run --quiet load.js >/dev/null 2>&1 || true
   kill "$sampler" 2>/dev/null; wait "$sampler" 2>/dev/null || true
 }
@@ -72,6 +76,7 @@ record_environment() {
     echo "| Java | $(docker run --rm --entrypoint java sched-engine-java:dev -version 2>&1 | head -1) |"
     echo "| k6 | $(docker run --rm grafana/k6 version 2>/dev/null | head -1) |"
     echo "| Núcleos | motor \`$ENGINE_CPUS\`, NATS \`$NATS_CPUS\`, k6 \`$K6_CPUS\` |"
+    echo "| Combinaciones por respuesta | hasta $MAX_COMBINATIONS |"
     echo "| Repeticiones | $REPS, orden alternado; $DURATION por tasa, $COOLDOWN s de pausa entre tasas |"
   } > "$OUT/environment.md"
 }
@@ -79,7 +84,8 @@ record_environment() {
 record_environment
 
 for rep in $(seq 1 "$REPS"); do
-  if (( rep % 2 == 1 )); then order="rust java"; else order="java rust"; fi
+  # Orden alternado entre repeticiones.
+  if (( rep % 2 == 1 )); then order=$ENGINES; else order=$(tr ' ' '\n' <<< "$ENGINES" | tac | xargs); fi
   for engine in $order; do
     prefix="${engine}_rep${rep}"
     echo "==> Repetición $rep/$REPS: $engine"
